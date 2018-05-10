@@ -2,6 +2,5 @@
 
 cd "$(dirname "$0")"
 
-./build.sh
-
-ino upload -m nano328
+ino clean
+ino build -m nano328
