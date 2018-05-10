@@ -4,6 +4,8 @@
 #define LEFT_SENSOR A7
 #define RIGHT_SENSOR A5
 
+#define MOTOR_SPEED 100
+
 void setup() {
   Serial.begin(9600);
   pinMode(LEFT_MOTOR, OUTPUT);
