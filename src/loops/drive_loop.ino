@@ -9,6 +9,8 @@ DriveLoop::DriveLoop() : state_(ZEROING), running_(false) {}
 void DriveLoop::Run() {
   running_ = true;
 
+  sensor_filter_.Zero();
+
   while (running_) {
     double start_time = micros();
     RunIteration();
@@ -18,6 +20,9 @@ void DriveLoop::Run() {
 }
 
 void DriveLoop::RunIteration() {
+  RawSensors raw_sensors = io_.GetSensors();
+  sensor_filter_.ProcessRawSensors(raw_sensors);
+
   switch (state_) {
     case ZEROING:
       break;
