@@ -11,18 +11,11 @@
 #define LEFT_WHEEL A6
 #define RIGHT_WHEEL A4
 
-#define LEFT_FAST 100 //200 //100
-#define RIGHT_FAST 130 //245 //130
-#define MEAS_FAST 0.00002f
-
-#define p 1.7f
-#define accelTimeConst 500000.0f // microsecond-scale
+#define LEFT_FAST 110 //200 //100
+#define RIGHT_FAST 140 //245 //130
 
 float leftMaxLight;
 float rightMaxLight;
-
-float leftSpeed = 0;
-float rightSpeed = 0;
 
 bool leftWheelPrevState;
 bool rightWheelPrevState;
@@ -30,12 +23,13 @@ unsigned long leftWheelPrevTime;
 unsigned long rightWheelPrevTime;
 float leftMeasSpeed = 0;
 float rightMeasSpeed = 0;
-float prevDesiredLeftSpeed = 0;
-float prevDesiredRightSpeed = 0;
-
 
 unsigned long currTime;
 unsigned long loopTime;
+
+unsigned long flashTime = 0;
+
+bool stopped = false;
 
 void setup() {
   Serial.begin(9600);
@@ -45,16 +39,21 @@ void setup() {
   pinMode(STRAIGHT_LED, OUTPUT);
   pinMode(RIGHT_LED, OUTPUT);
   calibrate();
-  leftWheelPrevState = analogRead(LEFT_WHEEL) > 100;
-  rightWheelPrevState = analogRead(RIGHT_WHEEL) > 100;
+  leftWheelPrevState = analogRead(LEFT_WHEEL) > 150;
+  rightWheelPrevState = analogRead(RIGHT_WHEEL) > 150;
   leftWheelPrevTime = micros();
   rightWheelPrevTime = micros();
   currTime = micros();
+  analogWrite(RIGHT_MOTOR, RIGHT_FAST*1.2);
+  analogWrite(LEFT_MOTOR, LEFT_FAST*1.2);
+  digitalWrite(LEFT_LED, LOW);
+  digitalWrite(STRAIGHT_LED, HIGH);
+  digitalWrite(RIGHT_LED, LOW);
+  delay(250);
 }
 
 void loop() {
   run();
-//  delay(10);
 
 //  TEST GO STRAIGHT
 //  analogWrite(LEFT_MOTOR, LEFT_FAST);
@@ -106,7 +105,7 @@ void run() {
   } else if (leftWheel < 50) {
     leftWheelPrevState = LOW;
   }
-  if (currTime - leftWheelPrevTime > 200000) {
+  if (currTime - leftWheelPrevTime > 500000) {
     leftMeasSpeed = 0;
   }
 
@@ -118,49 +117,52 @@ void run() {
   } else if (rightWheel < 50) {
     rightWheelPrevState = LOW;
   }
-  if (currTime - rightWheelPrevTime > 200000) {
+  if (currTime - rightWheelPrevTime > 500000) {
     rightMeasSpeed = 0;
   }
   
   float left = analogRead(LEFT_SENSOR) / leftMaxLight;
   float right = analogRead(RIGHT_SENSOR) / rightMaxLight;
-  if (left < 0.5 && right < 0.5) {
+  if ((left < 0.6 && right < 0.6) || stopped) {
+    stopped = true;
     analogWrite(LEFT_MOTOR, 0);
     analogWrite(RIGHT_MOTOR, 0);
-//    delay(1000);
+    digitalWrite(LEFT_LED, HIGH);
+    digitalWrite(STRAIGHT_LED, LOW);
+    digitalWrite(RIGHT_LED, HIGH);
   } else {
-    float leftPercent = constrain(p*left + (1-p), 0, 1);
-    float rightPercent = constrain(p*right + (1-p), 0, 1);
+    int leftSpeed = LEFT_FAST;
+    int rightSpeed = RIGHT_FAST;
+    if (left < 0.92) {
+      leftSpeed = 0;
+    } else if (right < 0.92) {
+      rightSpeed = 0;
+    }
 
-//    float desiredLeftSpeed = MEAS_FAST * leftPercent;
-//    float desiredRightSpeed = MEAS_FAST * rightPercent;
+    analogWrite(LEFT_MOTOR, leftSpeed);
+    analogWrite(RIGHT_MOTOR, rightSpeed);
 
-//    float leftSpeedChange = (desiredLeftSpeed - leftMeasSpeed) / MEAS_FAST;
-//    float rightSpeedChange = (desiredRightSpeed - rightMeasSpeed) / MEAS_FAST;
-//    leftSpeedChange *= abs(leftSpeedChange);
-//    rightSpeedChange *= abs(rightSpeedChange);
-//    leftSpeedChange *= LEFT_FAST * loopTime/accelTimeConst;
-//    rightSpeedChange *= RIGHT_FAST * loopTime/accelTimeConst;
-//    leftSpeedChange += (desiredLeftSpeed - prevDesiredLeftSpeed) * LEFT_FAST/MEAS_FAST / 2;
-//    rightSpeedChange += (desiredRightSpeed - prevDesiredRightSpeed) * LEFT_FAST/MEAS_FAST / 2;
-    
-//    leftSpeed = constrain(leftSpeed + leftSpeedChange, 0, 255);
-//    rightSpeed = constrain(rightSpeed + rightSpeedChange, 0, 255);
-
-    leftSpeed = constrain(leftPercent * LEFT_FAST, LEFT_FAST*0.25, 255);
-    rightSpeed = constrain(rightPercent * RIGHT_FAST, RIGHT_FAST*0.25, 255);
-
-//    prevDesiredLeftSpeed = desiredLeftSpeed;
-//    prevDesiredRightSpeed = desiredRightSpeed;
-    
-    analogWrite(LEFT_MOTOR, (int) leftSpeed);
-    analogWrite(RIGHT_MOTOR, (int) rightSpeed);
-
-    if (leftPercent / rightPercent < 0.9) {
+    if (rightSpeed > 0 && rightMeasSpeed == 0) {
+      analogWrite(RIGHT_MOTOR, rightSpeed*1.5);
+      analogWrite(LEFT_MOTOR, leftSpeed*1.5);
+      if (currTime - flashTime > 100000) {
+        if (currTime - flashTime < 200000) {
+          digitalWrite(LEFT_LED, HIGH);
+          digitalWrite(STRAIGHT_LED, HIGH);
+          digitalWrite(RIGHT_LED, HIGH);
+        } else {
+          flashTime = currTime;
+        }
+      } else {
+        digitalWrite(LEFT_LED, LOW);
+        digitalWrite(STRAIGHT_LED, LOW);
+        digitalWrite(RIGHT_LED, LOW);
+      }
+    } else if (leftSpeed == 0) {
       digitalWrite(LEFT_LED, HIGH);
       digitalWrite(STRAIGHT_LED, LOW);
       digitalWrite(RIGHT_LED, LOW);
-    } else if (rightPercent / leftPercent < 0.9) {
+    } else if (rightSpeed == 0) {
       digitalWrite(LEFT_LED, LOW);
       digitalWrite(STRAIGHT_LED, LOW);
       digitalWrite(RIGHT_LED, HIGH);
@@ -188,5 +190,4 @@ void calibrate() {
   leftMaxLight = avgLeft; 
   rightMaxLight = avgRight; 
 }
-
 
