@@ -15,7 +15,7 @@
 #define RIGHT_FAST 130 //245
 #define MEAS_FAST 0.00002f
 
-#define p 0.8f
+#define p 1.0f
 #define accelTimeConst 500000.0f // microsecond-scale
 
 float leftMaxLight;
@@ -30,6 +30,9 @@ unsigned long leftWheelPrevTime;
 unsigned long rightWheelPrevTime;
 float leftMeasSpeed = 0;
 float rightMeasSpeed = 0;
+float prevDesiredLeftSpeed = 0;
+float prevDesiredRightSpeed = 0;
+
 
 unsigned long currTime;
 unsigned long loopTime;
@@ -137,9 +140,14 @@ void run() {
     rightSpeedChange *= abs(rightSpeedChange);
     leftSpeedChange *= LEFT_FAST * loopTime/accelTimeConst;
     rightSpeedChange *= RIGHT_FAST * loopTime/accelTimeConst;
+    leftSpeedChange += (desiredLeftSpeed - prevDesiredLeftSpeed) * LEFT_FAST/MEAS_FAST / 2;
+    rightSpeedChange += (desiredRightSpeed - prevDesiredRightSpeed) * LEFT_FAST/MEAS_FAST / 2;
     
     leftSpeed = constrain(leftSpeed + leftSpeedChange, 0, 255);
     rightSpeed = constrain(rightSpeed + rightSpeedChange, 0, 255);
+
+    prevDesiredLeftSpeed = desiredLeftSpeed;
+    prevDesiredRightSpeed = desiredRightSpeed;
     
     analogWrite(LEFT_MOTOR, (int) leftSpeed);
     analogWrite(RIGHT_MOTOR, (int) rightSpeed);
